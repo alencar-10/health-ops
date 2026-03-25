@@ -1,0 +1,12 @@
+[
+  {
+    "descricao_original": "DIPIRONA SODICA 123 MG COMPRIMIDO TESTE",
+    "drug": {
+      "principle": "DIPIRONA SODICA TESTE",
+      "strength": 123,
+      "form": "COMPRIMIDO"
+    },
+    "status": "APPROVED",
+    "id": 1
+  }
+]
