@@ -70,9 +70,11 @@ async def get_authenticated_session():
         print("✅ Login realizado")
 
         cookies = await context.cookies()
+        print("COOKIES CAPTURADOS:", cookies)
 
         # ✅ salva cookies
         save_cookies(cookies)
+        print("COOKIES CARREGADOS:", cookies)
 
         await browser.close()
 
