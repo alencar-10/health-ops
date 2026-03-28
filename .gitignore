@@ -4,3 +4,5 @@ __pycache__/
 *.log
 .env
 *.rar
+echo ".vivver_cookies.json" >> .gitignore
+echo "state.json" >> .gitignore
