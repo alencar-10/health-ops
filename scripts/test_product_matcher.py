@@ -9,8 +9,7 @@ from app.catalog.catalog_index import CatalogIndex
 
 from app.matching.product_matcher import ProductMatcher
 
-
-BASE_URL = "https://guaraciama-mg-tst.vivver.com"
+from app.config.settings import BASE_URL
 
 
 async def run():

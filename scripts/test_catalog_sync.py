@@ -6,8 +6,7 @@ from app.adapters.vivver.http.catalog import VivverCatalogClient
 from app.catalog.catalog_repository import CatalogRepository
 from app.catalog.catalog_sync import CatalogSync
 
-
-BASE_URL = "https://guaraciama-mg-tst.vivver.com"
+from app.config.settings import BASE_URL  # ← linha 9: import adicionado
 
 
 async def run():

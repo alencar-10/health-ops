@@ -23,7 +23,7 @@ from app.normalization.strength_parser import StrengthParser
 from app.normalization.principle_extractor import PrincipleExtractor
 
 
-BASE_URL = "https://guaraciama-mg-tst.vivver.com"
+from app.config.settings import BASE_URL
 
 
 async def run():

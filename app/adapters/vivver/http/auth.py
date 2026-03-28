@@ -1,54 +1,73 @@
+import json
+from pathlib import Path
 from playwright.async_api import async_playwright
-from app.config.settings import (
-    VIVVER_BASE_URL,
-    VIVVER_USERNAME,
-    VIVVER_PASSWORD,
-)
-import os
+from app.adapters.vivver.http.session import create_session_from_cookies
+from app.config.settings import BASE_URL, USERNAME, PASSWORD
 
-STATE_PATH = "state.json"
-
-# 🔥 manter playwright vivo
-playwright = None
-browser = None
+COOKIES_FILE = Path(".vivver_cookies.json")
 
 
-async def login_and_save_state():
-    global playwright, browser
+async def get_authenticated_session():
 
-    playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
+    if not BASE_URL or not USERNAME or not PASSWORD:
+        raise ValueError("Configuração inválida: verifique BASE_URL, VIVVER_USERNAME, VIVVER_PASSWORD no .env")
 
-    context = await browser.new_context()
-    page = await context.new_page()
+    # tenta reutilizar cookies salvos
+    if COOKIES_FILE.exists():
+        print("♻️ Tentando reutilizar sessão salva...")
+        try:
+            cookies = json.loads(COOKIES_FILE.read_text())
+            session = create_session_from_cookies(cookies)
+            if _session_valida(session):
+                print("✅ Sessão reutilizada com sucesso")
+                return session
+            print("🔄 Sessão inválida, refazendo login...")
+        except Exception as e:
+            print(f"⚠️ Erro ao carregar cookies: {e}")
 
-    await page.goto(f"{VIVVER_BASE_URL}/login")
+    # faz login via Playwright
+    cookies = await _login_playwright()
 
-    await page.fill('input[name="conta"]', VIVVER_USERNAME)
-    await page.fill('input[name="password"]', VIVVER_PASSWORD)
+    COOKIES_FILE.write_text(json.dumps(cookies))
+    print("💾 Cookies salvos em disco")
 
-    await page.click("div.btn_entrar")
-    await page.wait_for_timeout(3000)
-
-    print("✅ Login realizado")
-
-    await context.storage_state(path=STATE_PATH)
+    return create_session_from_cookies(cookies)
 
 
-async def get_browser_context():
-    global playwright, browser
+def _session_valida(session) -> bool:
+    try:
+        response = session.get(f"{BASE_URL}/desktop", allow_redirects=False)
+        if response.status_code in (301, 302):
+            location = response.headers.get("Location", "")
+            if "/login" in location:
+                return False
+        return response.status_code == 200
+    except Exception:
+        return False
 
-    playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
 
-    if os.path.exists(STATE_PATH):
-        print("♻️ Reutilizando sessão salva")
-        context = await browser.new_context(storage_state=STATE_PATH)
-    else:
-        print("🔄 Sessão não encontrada, realizando login...")
-        await login_and_save_state()
-        context = await browser.new_context(storage_state=STATE_PATH)
+async def _login_playwright() -> list:
 
-    return playwright, browser, context
+    print("🔐 Iniciando login via Playwright...")
 
-    return browser, context
+    async with async_playwright() as p:
+
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+
+        await page.goto(f"{BASE_URL}/desktop")
+
+        await page.fill('input[name="conta"]', USERNAME)
+        await page.fill('input[name="password"]', PASSWORD)
+
+        await page.click("div.btn_entrar")
+
+        await page.wait_for_url("**/desktop")
+
+        print("✅ Login realizado")
+
+        cookies = await page.context.cookies()
+
+        await browser.close()
+
+    return cookies

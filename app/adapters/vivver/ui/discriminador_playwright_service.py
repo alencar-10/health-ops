@@ -1,4 +1,5 @@
 from playwright.sync_api import sync_playwright
+from app.config.settings import BASE_URL  # ← linha 2: import adicionado
 import pandas as pd
 import time
 
@@ -14,7 +15,7 @@ class DiscriminadorPlaywrightService:
 
             page = browser.new_page()
 
-            page.goto("https://guaraciama-mg-tst.vivver.com/desktop")
+            page.goto(f"{BASE_URL}/desktop")  # ← linha 17: era string fixa, agora usa variável
 
             input("Faça login manual e pressione ENTER...")
 

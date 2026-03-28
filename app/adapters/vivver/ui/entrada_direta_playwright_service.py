@@ -1,13 +1,10 @@
+from app.config.settings import BASE_URL, USERNAME, PASSWORD  # ← linha 1: import
 import pandas as pd
 import time
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "https://www.franciscosa-mg.vivver.com"
-LOGIN_URL = f"{BASE_URL}/desktop"
-
-USUARIO = "35304775830"
-SENHA = "kloq230"
+# BASE_URL, LOGIN_URL, USUARIO, SENHA removidos daqui — vêm do .env
 
 
 class EntradaDiretaPlaywrightService:
@@ -30,15 +27,15 @@ class EntradaDiretaPlaywrightService:
 
             # ================= LOGIN =================
 
-            page.goto(LOGIN_URL)
+            page.goto(f"{BASE_URL}/desktop")  # ← era LOGIN_URL
 
             page.wait_for_selector(
                 "input[placeholder='Insira sua Conta']",
                 timeout=15000
             )
 
-            page.fill("input[placeholder='Insira sua Conta']", USUARIO)
-            page.fill("input[placeholder='Senha']", SENHA)
+            page.fill("input[placeholder='Insira sua Conta']", USERNAME)  # ← era USUARIO
+            page.fill("input[placeholder='Senha']", PASSWORD)             # ← era SENHA
 
             page.locator("div.btn_entrar").click()
 
@@ -91,8 +88,6 @@ class EntradaDiretaPlaywrightService:
 
                 print(f"Incluindo item {index + 1}")
 
-                # ================= PRODUTO =================
-
                 print("[PRODUTO] Inserindo código direto...")
 
                 page.evaluate("""
@@ -108,8 +103,6 @@ class EntradaDiretaPlaywrightService:
                 page.wait_for_timeout(1000)
 
                 print("[PRODUTO] OK")
-
-                # ================= FABRICANTE =================
 
                 print("[FABRICANTE] Inserindo código direto...")
 
@@ -127,21 +120,9 @@ class EntradaDiretaPlaywrightService:
 
                 print("[FABRICANTE] OK")
 
-                # ================= CAMPOS SIMPLES =================
-
-                page.locator(
-                    "#amx_entrada_direta_produto_numlote"
-                ).fill(str(row["LOTE"]))
-
-                page.locator(
-                    "#amx_entrada_direta_produto_qdeentrada"
-                ).fill(str(row["QUANTIDADE"]))
-
-                page.locator(
-                    "#amx_entrada_direta_produto_prcunitario"
-                ).fill(str(row["PRECO_UNITARIO"]))
-
-                # ================= VALIDADE =================
+                page.locator("#amx_entrada_direta_produto_numlote").fill(str(row["LOTE"]))
+                page.locator("#amx_entrada_direta_produto_qdeentrada").fill(str(row["QUANTIDADE"]))
+                page.locator("#amx_entrada_direta_produto_prcunitario").fill(str(row["PRECO_UNITARIO"]))
 
                 data = row["DT_VALIDADE"]
 
@@ -155,33 +136,18 @@ class EntradaDiretaPlaywrightService:
                     except:
                         data_validade = str(data)
 
-                campo_validade = page.locator(
-                    "#amx_entrada_direta_produto_datvalidade"
-                )
-
+                campo_validade = page.locator("#amx_entrada_direta_produto_datvalidade")
                 campo_validade.click()
                 campo_validade.fill(data_validade)
-
                 page.keyboard.press("Enter")
-
                 page.wait_for_timeout(800)
 
-                # ================= BOTÃO AZUL =================
-
                 print("[ITEM] Clicando botão adicionar...")
-
                 page.locator("a:has(i.fa-arrow-down)").click()
-
                 page.wait_for_timeout(1500)
-
                 print("✔ Item incluído")
 
-            # ================= FINAL =================
-
             print("\nItens inseridos. Confira na tela antes de salvar.")
-
             input("Pressione ENTER quando terminar a conferência...")
-
             print("Encerrando automação.")
-
             browser.close()

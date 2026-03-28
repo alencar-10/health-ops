@@ -17,16 +17,13 @@ from app.services.product_creator import ProductCreator
 from app.builders.principle_payload_builder import PrinciplePayloadBuilder
 from app.utils.code_generator import CodeGenerator
 
-
-
-BASE_URL = "https://guaraciama-mg-tst.vivver.com"
+from app.config.settings import BASE_URL  # ← único import necessário
 
 
 async def create_application():
 
     session = await get_authenticated_session()
 
-    # catálogo
     catalog_client = VivverCatalogClient(BASE_URL, session)
 
     repo = CatalogRepository()
@@ -34,31 +31,14 @@ async def create_application():
     sync = CatalogSync(catalog_client, repo)
     sync.run()
 
-    # lookups
     principle_lookup = PrincipleLookup(repo)
     product_lookup = ProductLookup(repo)
 
-    # =============================
-    # CLIENTS
-    # =============================
-
     product_client = VivverProductClient(session, BASE_URL)
-
     principle_client = VivverPrincipleClient(BASE_URL, session)
-
     link_client = VivverProductLinkClient(session, BASE_URL)
 
-
-    # =============================
-    # BUILDERS
-    # =============================
-
     payload_builder = PrinciplePayloadBuilder()
-
-
-    # =============================
-    # SERVICES
-    # =============================
 
     principle_service = PrincipleService(
         principle_client,
@@ -70,10 +50,8 @@ async def create_application():
         link_client
     )
 
-    # utils
     code_generator = CodeGenerator(repo)
 
-    # creator
     creator = ProductCreator(
         principle_service,
         product_service,

@@ -3,9 +3,7 @@ import asyncio
 from app.adapters.vivver.http.catalog import VivverCatalogClient
 from app.adapters.vivver.http.auth import get_authenticated_session
 
-
-BASE_URL = "https://guaraciama-mg-tst.vivver.com"
-
+from app.config.settings import BASE_URL
 
 async def run():
 
