@@ -1,20 +1,16 @@
 import asyncio
-from app.adapters.vivver.http.auth import get_authenticated_session
-from app.adapters.vivver.http.auth import (
-    get_authenticated_session,
-    get_session_from_disk,
-    is_session_valid,
-)
+from app.adapters.vivver.http.auth import get_browser_context
 
 
 async def main():
-    session = get_session_from_disk()
+    browser, context = await get_browser_context()
 
-    if not session or not is_session_valid(session):
-        print("🔄 Sessão inválida, refazendo login...")
-        session = await get_authenticated_session()
+    page = await context.new_page()
+    await page.goto("https://guaraciama-mg-tst.vivver.com/desktop")
 
-    print("Session criada:", session)
-    print("Cookies:", session.cookies.get_dict())
+    print("🌐 URL:", page.url)
 
-asyncio.run(main()) 
+    await browser.close()
+
+
+asyncio.run(main())
