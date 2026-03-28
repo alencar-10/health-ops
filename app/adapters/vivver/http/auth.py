@@ -49,4 +49,6 @@ async def get_browser_context():
         await login_and_save_state()
         context = await browser.new_context(storage_state=STATE_PATH)
 
+    return playwright, browser, context
+
     return browser, context
