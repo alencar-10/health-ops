@@ -1,6 +1,8 @@
 from playwright.async_api import async_playwright
 from .session import create_session_from_cookies
 from app.config.settings import VIVVER_BASE_URL, VIVVER_USERNAME, VIVVER_PASSWORD
+from app.adapters.vivver.http.session_storage import save_cookies
+
 
 
 async def get_authenticated_session():
@@ -24,7 +26,8 @@ async def get_authenticated_session():
 
         print("✅ Login realizado")
 
-        cookies = await page.context.cookies()
+        cookies = await context.cookies()
+        save_cookies(cookies)
 
         await browser.close()
 
