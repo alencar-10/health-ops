@@ -8,39 +8,45 @@ import os
 
 STATE_PATH = "state.json"
 
+# 🔥 manter playwright vivo
+playwright = None
+browser = None
+
 
 async def login_and_save_state():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
-        page = await context.new_page()
+    global playwright, browser
 
-        await page.goto(f"{VIVVER_BASE_URL}/login")
+    playwright = await async_playwright().start()
+    browser = await playwright.chromium.launch(headless=True)
 
-        await page.fill('input[name="conta"]', VIVVER_USERNAME)
-        await page.fill('input[name="password"]', VIVVER_PASSWORD)
+    context = await browser.new_context()
+    page = await context.new_page()
 
-        await page.click("div.btn_entrar")
-        await page.wait_for_timeout(3000)
+    await page.goto(f"{VIVVER_BASE_URL}/login")
 
-        print("✅ Login realizado")
+    await page.fill('input[name="conta"]', VIVVER_USERNAME)
+    await page.fill('input[name="password"]', VIVVER_PASSWORD)
 
-        # 🔥 salva sessão completa
-        await context.storage_state(path=STATE_PATH)
+    await page.click("div.btn_entrar")
+    await page.wait_for_timeout(3000)
 
-        await browser.close()
+    print("✅ Login realizado")
+
+    await context.storage_state(path=STATE_PATH)
 
 
 async def get_browser_context():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+    global playwright, browser
 
-        if os.path.exists(STATE_PATH):
-            print("♻️ Reutilizando sessão salva")
-            context = await browser.new_context(storage_state=STATE_PATH)
-        else:
-            print("🔄 Sessão não encontrada, realizando login...")
-            await login_and_save_state()
-            context = await browser.new_context(storage_state=STATE_PATH)
+    playwright = await async_playwright().start()
+    browser = await playwright.chromium.launch(headless=True)
 
-        return browser, context
+    if os.path.exists(STATE_PATH):
+        print("♻️ Reutilizando sessão salva")
+        context = await browser.new_context(storage_state=STATE_PATH)
+    else:
+        print("🔄 Sessão não encontrada, realizando login...")
+        await login_and_save_state()
+        context = await browser.new_context(storage_state=STATE_PATH)
+
+    return browser, context
