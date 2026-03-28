@@ -5,386 +5,187 @@
 HEALTH-OPS é uma plataforma de automação para o ERP Vivver usada por prefeituras.
 O sistema automatiza operações administrativas como:
 
-* cadastro de produtos
-* cadastro de princípios ativos
-* organização de catálogo
-* preparação para entrada de nota fiscal
-* automação de rotinas operacionais
+- cadastro de princípios ativos
+- cadastro de produtos
+- vínculo entre princípio ativo e produto
+- organização e sincronização de catálogo
+- preparação para automação de nota fiscal
 
-Inicialmente o foco é o módulo de **farmácia**, mas a arquitetura foi projetada para suportar **outros módulos do ERP**.
+O foco atual é o módulo de **farmácia**, mas a arquitetura foi projetada para suportar outros módulos do ERP e múltiplos tenants (prefeituras).
 
 ---
 
-# Arquitetura geral
+## Princípios arquiteturais
 
-O sistema segue princípios de:
+- **Clean Architecture** — separação entre domínio, serviços, adaptadores e infraestrutura
+- **Ports and Adapters (Hexagonal)** — o domínio não conhece o ERP; adaptadores traduzem
+- **Pipeline Processing** — dados fluem por etapas bem definidas até a execução no ERP
 
-* Clean Architecture
-* Ports and Adapters (Hexagonal)
-* Pipeline Processing
+---
 
-Fluxo geral:
+## Fluxo principal
 
 ```
 Fonte de dados
-(XML / planilha / integração)
-
+(texto / XML / planilha)
         ↓
-
-Parser de fonte
-
+DrugParser
+(normalização farmacêutica)
         ↓
-
-Normalização de dados
-
+Drug object
+(princípio, dose, forma)
         ↓
-
-Matching com catálogo existente
-
+ProductMatcher
+(matching com catálogo local)
         ↓
-
-Decisão de criação ou atualização
-
+DecisionEngine
+(EXISTS / REVIEW / CREATE)
         ↓
-
-Integração com Vivver (HTTP / UI)
+ReviewQueue
+(aprovação humana via API)
+        ↓
+ProductCreator
+(cria princípio → produto → vínculo no ERP)
+        ↓
+Vivver ERP
 ```
 
 ---
 
-# Estrutura do projeto
+## Estrutura de diretórios
 
 ```
-C:.
-│   .gitignore
-│
-├───api
-│       server.py
-│
-├───app
-│   ├───adapters
-│   │   │   registry.py
-│   │   │   __init__.py
-│   │   │
-│   │   ├───base
-│   │   │       system_client.py
-│   │   │       __init__.py
-│   │   │
-│   │   ├───sigaf
-│   │   │   │   __init__.py
-│   │   │   │
-│   │   │   └───http
-│   │   │           __init__.py
-│   │   │
-│   │   ├───vivver
-│   │   │   │   vivver_adapter.py
-│   │   │   │   __init__.py
-│   │   │   │
-│   │   │   ├───http
-│   │   │   │   │   auth.py
-│   │   │   │   │   bulk_engine.py
-│   │   │   │   │   catalog.py
-│   │   │   │   │   client(other_project).py
-│   │   │   │   │   client.py
-│   │   │   │   │   endpoint_scanner.py
-│   │   │   │   │   entrada_api.py
-│   │   │   │   │   module_engine.py
-│   │   │   │   │   principle_client.py
-│   │   │   │   │   products.py
-│   │   │   │   │   product_client.py
-│   │   │   │   │   product_link_client.py
-│   │   │   │   │   product_mapper.py
-│   │   │   │   │   produto_api.py
-│   │   │   │   │   session.py
-│   │   │   │   │   __init__.py
-│   │   │   │   │
-│   │   │   │   └───__pycache__
-│   │   │   │           auth.cpython-313.pyc
-│   │   │   │           catalog.cpython-313.pyc
-│   │   │   │           principle_client.cpython-313.pyc
-│   │   │   │           product_client.cpython-313.pyc
-│   │   │   │           product_mapper.cpython-313.pyc
-│   │   │   │           session.cpython-313.pyc
-│   │   │   │           __init__.cpython-313.pyc
-│   │   │   │
-│   │   │   ├───ui
-│   │   │   │       browser.py
-│   │   │   │       discriminador_playwright_service.py
-│   │   │   │       entrada_direta_playwright_service.py
-│   │   │   │       entrada_direta_ui.py
-│   │   │   │       playwright_driver.py
-│   │   │   │       product_ui.py
-│   │   │   │       __init__.py
-│   │   │   │
-│   │   │   └───__pycache__
-│   │   │           __init__.cpython-313.pyc
-│   │   │
-│   │   └───__pycache__
-│   │           __init__.cpython-313.pyc
-│   │
-│   ├───api
-│   │   │   server.py
-│   │   │
-│   │   └───__pycache__
-│   │           server.cpython-313.pyc
-│   │
-│   ├───automation
-│   ├───builders
-│   │       principle_payload_builder.py
-│   │
-│   ├───catalog
-│   │   │   catalog_index.py
-│   │   │   catalog_pharma_index.py
-│   │   │   catalog_principle_index.py
-│   │   │   catalog_repository.py
-│   │   │   catalog_sync.py
-│   │   │   principle_lookup.py
-│   │   │   product_lookup.py
-│   │   │   __init__.py
-│   │   │
-│   │   └───__pycache__
-│   │           catalog_index.cpython-313.pyc
-│   │           catalog_pharma_index.cpython-313.pyc
-│   │           catalog_principle_index.cpython-313.pyc
-│   │           catalog_repository.cpython-313.pyc
-│   │           catalog_sync.cpython-313.pyc
-│   │           principle_lookup.cpython-313.pyc
-│   │           product_lookup.cpython-313.pyc
-│   │           __init__.cpython-313.pyc
-│   │
-│   ├───config
-│   ├───core
-│   ├───domain
-│   │   │   drug.py
-│   │   │   product.py
-│   │   │
-│   │   └───__pycache__
-│   │           drug.cpython-313.pyc
-│   │           product.cpython-313.pyc
-│   │
-│   ├───infra
-│   ├───matching
-│   │   │   product_matcher.py
-│   │   │
-│   │   └───__pycache__
-│   │           product_matcher.cpython-313.pyc
-│   │
-│   ├───normalization
-│   │   │   drug_mapper.py
-│   │   │   drug_parser.py
-│   │   │   drug_validator.py
-│   │   │   principle_extractor.py
-│   │   │   strength_parser.py
-│   │   │   text_normalizer.py
-│   │   │
-│   │   └───__pycache__
-│   │           drug_mapper.cpython-313.pyc
-│   │           drug_parser.cpython-313.pyc
-│   │           principle_extractor.cpython-313.pyc
-│   │           strength_parser.cpython-313.pyc
-│   │           text_normalizer.cpython-313.pyc
-│   │
-│   ├───pipelines
-│   │   │   product_pipeline.py
-│   │   │
-│   │   └───__pycache__
-│   │           product_pipeline.cpython-313.pyc
-│   │
-│   ├───ports
-│   │       erp_port.py
-│   │
-│   ├───review
-│   │   │   review_queue.py
-│   │   │
-│   │   └───__pycache__
-│   │           review_queue.cpython-313.pyc
-│   │
-│   ├───services
-│   │   │   principle_service.py
-│   │   │   product_creator.py
-│   │   │   product_decision_engine.py
-│   │   │   product_service.py
-│   │   │
-│   │   └───__pycache__
-│   │           principle_service.cpython-313.pyc
-│   │           product_creator.cpython-313.pyc
-│   │           product_decision_engine.cpython-313.pyc
-│   │           product_service.cpython-313.pyc
-│   │
-│   ├───tenants
-│   │       tenant_config.py
-│   │
-│   └───utils
-│       │   code_generator.py
-│       │
-│       └───__pycache__
-│               code_generator.cpython-313.pyc
-│
-├───data
-│       review_queue.json
-│
-├───docs
-│       architecture.md
-│       decisions.md
-│       endpoints.md
-│       pipeline.md
-│       README_DEV.md
-│       roadmap.md
-│
-├───scripts
-│   │   generate_endpoint_client.py
-│   │   scan_vivver_endpoints.py
-│   │   test_catalog_sync.py
-│   │   test_normalizer.py
-│   │   test_product_matcher.py
-│   │   test_product_pipeline.py
-│   │   test_vivver_catalog.py
-│   │
-│   └───__pycache__
-│           test_catalog_sync.cpython-313.pyc
-│           test_normalizer.cpython-313.pyc
-│           test_product_matcher.cpython-313.pyc
-│           test_product_pipeline.cpython-313.pyc
-│           test_vivver_catalog.cpython-313.pyc
-│
-├───tests
-├───tools
-│   └───vivver_mapper
-│           endpoint_discovery.py
-│           form_parser.py
-│           relation_mapper.py
-│           schema_extractor.py
-│
-└───workers
-PS C:\Users\alenc\OneDrive\Documentos\health-ops>
+app/
+├── adapters/
+│   └── vivver/
+│       ├── http/
+│       │   ├── auth.py               # autenticação via Playwright + cache de cookies
+│       │   ├── catalog.py            # download do catálogo do ERP
+│       │   ├── client.py             # cliente HTTP base
+│       │   ├── principle_client.py   # criação de princípio ativo
+│       │   ├── product_client.py     # criação de produto + extração de ID
+│       │   ├── product_link_client.py# vínculo produto ↔ princípio
+│       │   ├── product_mapper.py     # mapeamento JSON → objeto Product
+│       │   └── session.py            # criação de sessão requests com cookies
+│       ├── ui/
+│       │   ├── discriminador_playwright_service.py
+│       │   └── entrada_direta_playwright_service.py
+│       └── vivver_adapter.py         # orquestra os serviços via ERPPort
+├── api/
+│   └── server.py                     # FastAPI: /reviews e /approve/{id}
+├── bootstrap/
+│   └── application.py                # composição de todos os objetos
+├── builders/
+│   └── principle_payload_builder.py  # monta payload do princípio ativo
+├── catalog/
+│   ├── catalog_repository.py         # armazenamento em memória
+│   ├── catalog_sync.py               # sincronização com o ERP
+│   ├── catalog_index.py              # índice de busca de produtos
+│   ├── catalog_pharma_index.py       # índice farmacológico
+│   ├── catalog_principle_index.py    # índice de princípios ativos
+│   ├── principle_lookup.py           # busca de princípio por código
+│   └── product_lookup.py             # busca de produto por código
+├── config/
+│   └── settings.py                   # leitura de variáveis do .env
+├── domain/
+│   ├── drug.py                       # objeto Drug (princípio, dose, forma)
+│   └── product.py                    # objeto Product
+├── matching/
+│   └── product_matcher.py            # matching com catálogo local
+├── normalization/
+│   ├── drug_mapper.py                # detecta forma farmacêutica
+│   ├── drug_parser.py                # parser principal
+│   ├── principle_extractor.py        # extrai princípio ativo
+│   ├── strength_parser.py            # extrai dose e unidade
+│   └── text_normalizer.py            # normalização de texto
+├── pipelines/
+│   └── product_pipeline.py           # orquestra o fluxo completo
+├── ports/
+│   └── erp_port.py                   # interface abstrata do ERP
+├── review/
+│   └── review_queue.py               # fila de revisão humana
+├── services/
+│   ├── principle_service.py          # cria princípio ativo no ERP
+│   ├── product_creator.py            # orquestra criação completa
+│   ├── product_decision_engine.py    # decide EXISTS/REVIEW/CREATE
+│   └── product_service.py            # cria produto e faz vínculo
+├── tenants/
+│   └── tenant_config.py              # configuração por tenant (futuro)
+└── utils/
+    └── code_generator.py             # geração de código único
+data/
+    review_queue.json                 # fila persistida em disco
+docs/                                 # documentação do projeto
+scripts/                              # scripts de teste e utilitários
 ```
 
 ---
 
-# Pipeline principal do sistema
+## Autenticação
 
-Pipeline de cadastro de produto:
+O sistema usa **Playwright apenas para login**. Após o login, os cookies são extraídos e uma `requests.Session` é criada para todas as requisições HTTP subsequentes.
+
+Cookies são salvos em `.vivver_cookies.json` e reutilizados nas execuções seguintes. Se a sessão estiver expirada, o login é refeito automaticamente.
 
 ```
-entrada de produto
-        ↓
-text_normalizer
-        ↓
-product_matcher
-        ↓
-verificar catálogo
-        ↓
-produto existe?
-   ↓           ↓
-sim           não
- ↓             ↓
-ignorar    criar princípio ativo
-             ↓
-           criar produto
-             ↓
-           vincular princípio ativo
+Playwright → login → cookies → requests.Session → HTTP
 ```
 
 ---
 
-# Sincronização de catálogo
+## Configuração
 
-O sistema mantém um catálogo local em memória para evitar consultas repetidas ao ERP.
-
-Fluxo:
+Todas as credenciais e URLs são lidas do arquivo `.env`:
 
 ```
-Vivver API
-   ↓
-catalog_sync
-   ↓
-catalog_repository (memória)
-   ↓
-catalog_index
+VIVVER_BASE_URL=https://{tenant}.vivver.com
+VIVVER_USERNAME=seu_usuario
+VIVVER_PASSWORD=sua_senha
 ```
 
-Dados sincronizados:
-
-* produtos
-* princípios ativos
-* unidades
-* formas farmacêuticas
-* unidades de produto
+O `settings.py` expõe `BASE_URL`, `USERNAME` e `PASSWORD` para o restante do projeto.
 
 ---
 
-# Estratégia de matching
+## Integração com o Vivver
 
-Matching ocorre em duas etapas:
+### HTTP (principal)
 
-### 1 — normalização de texto
+Endpoints `/amx/*` para leitura e escrita.
 
-```
-Dipirona Sódica 500mg comprimido
-↓
-DIPIRONA SODICA 500MG COMPRIMIDO
-```
+Resposta do Vivver usa campo `"dados"` (não `"data"` padrão DataTables).
 
-### 2 — fuzzy matching
+### UI Automation (fallback)
 
-Utiliza RapidFuzz para detectar similaridade entre descrições.
+Playwright para operações sem endpoint HTTP disponível.
 
 ---
 
-# Estratégia de geração de código
+## Regras de negócio do Vivver
 
-Produtos e princípios ativos compartilham o mesmo código.
+1. Criar princípio ativo com `CODFORMA` obrigatório
+2. Criar produto com mesmo código do princípio
+3. Vincular produto ao princípio via PATCH — após vínculo, `CODFORMA` é herdado pelo produto
 
-Estratégia atual:
+---
+
+## Geração de código
+
+Códigos gerados pelo sistema usam faixa reservada:
 
 ```
 novo_codigo = max_codigo_existente + 1
 ```
 
-Isso garante compatibilidade com o padrão do Vivver.
+Garante não conflitar com cadastros manuais.
 
 ---
 
-# Estratégia multi-tenant
+## Estratégia multi-tenant (planejado)
 
-Cada prefeitura será um tenant independente.
+Cada prefeitura será um tenant independente com:
 
-Configuração por tenant:
-
-```
-base_url
-usuário
-senha
-configurações específicas
-```
-
----
-
-# Integração com Vivver
-
-A integração ocorre por dois meios:
-
-### HTTP
-
-Endpoints `/amx/*.json`
-
-Usado para:
-
-* leitura de catálogo
-* criação de entidades
-
-### UI automation
-
-Playwright
-
-Usado quando não existe endpoint HTTP disponível.
-
----
-
-# Próximos módulos planejados
-
-* parser de XML de nota fiscal
-* automação de entrada de nota
-* expansão para outros módulos do ERP
-* dashboard SaaS
-* gestão multi-tenant completa
+- `base_url` própria
+- credenciais próprias
+- catálogo isolado
+- cookie cache isolado

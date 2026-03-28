@@ -1,97 +1,101 @@
 # HEALTH-OPS — Roadmap de desenvolvimento
 
-## Fase 1 — Exploração técnica (concluída)
+## Fase 1 — Exploração técnica ✅ concluída
 
 Objetivo: entender o ERP Vivver.
 
-Concluído:
-
-* descoberta do ERP
-* engenharia reversa de endpoints
-* análise de autenticação
-* análise de paginação da API
-* entendimento do modelo de produtos
-* entendimento de princípios ativos
+- descoberta do ERP e engenharia reversa de endpoints
+- análise de autenticação (Playwright + cookies)
+- análise de paginação da API (`dados` vs `data`)
+- entendimento do modelo de produtos e princípios ativos
+- mapeamento de regras de negócio do Vivver
 
 ---
 
-## Fase 2 — Foundation Building (em andamento)
+## Fase 2 — Foundation Building ✅ concluída
 
 Objetivo: construir base do sistema.
 
-### Concluído
-
-* estrutura inicial do projeto
-* cliente HTTP Vivver
-* autenticação
-* sessão autenticada
-* paginação automática da API
-* download completo do catálogo
-* catalog_repository em memória
-* catalog_sync
-* text_normalizer
-* product_matcher inicial
-* sincronização de 13k produtos
-
----
-
-### Em desenvolvimento
-
-* catalog_index (índice de busca)
-* product_pipeline
-* normalização farmacêutica
-* modelagem de domínio (Product)
+- estrutura do projeto (Clean Architecture)
+- autenticação via Playwright com cache de cookies
+- sessão HTTP reutilizável
+- paginação automática da API
+- sincronização completa do catálogo (produtos, princípios, formas, unidades)
+- `CatalogRepository` em memória
+- `TextNormalizer`, `PrincipleExtractor`, `StrengthParser`, `DrugMapper`
+- `ProductMatcher` com fuzzy matching
+- `ProductPipeline` com `DecisionEngine`
+- `ReviewQueue` com persistência em JSON
+- API FastAPI com `/reviews` e `/approve/{id}`
+- centralização de configuração no `.env`
 
 ---
 
-## Fase 3 — Automação de catálogo
+## Fase 3 — Automação de catálogo ✅ concluída
 
-Planejado:
+Objetivo: criar produtos e princípios ativos automaticamente no Vivver.
 
-* criação automática de princípio ativo
-* criação automática de produto
-* vinculação produto ↔ princípio ativo
-* prevenção de duplicidade
-
----
-
-## Fase 4 — Automação de nota fiscal
-
-Planejado:
-
-* parser XML NFe
-* matching de produtos
-* criação automática de produtos faltantes
-* automação de entrada de nota
+- criação de princípio ativo via HTTP
+- criação de produto via HTTP
+- extração de ID do produto a partir do HTML de resposta
+- vínculo produto ↔ princípio ativo via PATCH
+- resolução correta de `CODFORMA` pelo catálogo local
+- sync de catálogo após cada criação para validação
+- fila de revisão humana antes de executar no ERP
 
 ---
 
-## Fase 5 — Plataforma SaaS
+## Fase 4 — Qualidade e escala (próxima)
 
-Planejado:
+Objetivo: tornar o sistema robusto para uso em produção.
 
-* suporte multi-tenant
-* armazenamento em banco de dados
-* interface administrativa
-* monitoramento de automações
-* logs centralizados
-
----
-
-# Métricas atuais do sistema
-
-Catálogo carregado:
-
-* Produtos: 13.671
-* Princípios ativos: 2.672
-* Unidades: 80
-* Formas farmacêuticas: 84
-* Unidades produto: 35
+- [ ] persistência do catálogo em SQLite (evitar sync completo a cada operação)
+- [ ] suporte a grupo e subgrupo de produto
+- [ ] via de administração automática no princípio ativo
+- [ ] detecção de material vs medicamento
+- [ ] entrada por planilha Excel
+- [ ] entrada por XML NFe
+- [ ] testes automatizados (pytest)
+- [ ] logs estruturados
 
 ---
 
-# Visão de longo prazo
+## Fase 5 — Multi-tenant
 
-Transformar o HEALTH-OPS em uma plataforma de automação para ERPs públicos.
+Objetivo: suportar múltiplas prefeituras.
 
-Inicialmente focado no Vivver, mas com arquitetura extensível para outros sistemas.
+- [ ] `tenant_config.py` com configuração por cliente
+- [ ] cookie cache isolado por tenant
+- [ ] catálogo isolado por tenant
+- [ ] `.env` por ambiente ou parametrização via CLI
+
+Tenants previstos:
+- `guaraciama-mg-tst.vivver.com`
+- `montesclaros-mg-tst.vivver.com`
+- `francissosa-mg.vivver.com`
+
+---
+
+## Fase 6 — Plataforma SaaS
+
+Objetivo: produto vendável para prefeituras.
+
+- [ ] dashboard operacional
+- [ ] aprovação em lote
+- [ ] interface web para revisão de fila
+- [ ] monitoramento de automações
+- [ ] logs centralizados
+- [ ] gestão de tenants
+- [ ] banco de dados multi-tenant
+
+---
+
+## Métricas do catálogo (referência)
+
+| Item | Quantidade |
+|---|---|
+| Produtos | ~13.671 |
+| Princípios ativos | 2.698 |
+| Unidades | 80 |
+| Formas farmacêuticas | 84 |
+| Unidades de produto | 35 |

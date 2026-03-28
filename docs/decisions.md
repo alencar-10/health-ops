@@ -1,61 +1,89 @@
-# Architecture Decisions
+# HEALTH-OPS — Decisões técnicas
 
-## ADR-001 — Catálogo em memória
-
-Decisão:
-
-O catálogo do ERP será carregado em memória durante a execução do sistema.
-
-Motivação:
-
-* catálogo pequeno
-* consultas muito mais rápidas
-* reduzir chamadas ao ERP
-
-Plano futuro:
-
-Migrar para SQLite quando o sistema se tornar multi-tenant.
+Registro de decisões arquiteturais relevantes.
 
 ---
 
-## ADR-002 — Matching baseado em texto
+## 001 — Playwright apenas para login
 
-Decisão:
+**Decisão:** usar Playwright somente para autenticação. Todo o restante usa `requests.Session`.
 
-Matching inicial baseado em normalização de texto + fuzzy matching.
+**Motivo:** o Vivver usa `token_random` gerado por JavaScript no login, impossível de reproduzir via HTTP puro. Após o login, cookies são suficientes para todas as operações.
 
-Biblioteca escolhida:
-
-RapidFuzz
-
-Motivação:
-
-* alta performance
-* precisão em comparação textual
+**Implementação:** `auth.py` faz login via Playwright, extrai cookies, retorna `requests.Session`. Cookies salvos em `.vivver_cookies.json` e reutilizados nas execuções seguintes.
 
 ---
 
-## ADR-003 — Código compartilhado produto/princípio ativo
+## 002 — Cache de cookies em arquivo
 
-Decisão:
+**Decisão:** salvar cookies em `.vivver_cookies.json` e reutilizar entre execuções.
 
-Produto e princípio ativo utilizarão o mesmo código.
+**Motivo:** evitar abrir browser a cada execução. Playwright é lento e instável como dependência primária.
 
-Motivação:
-
-Compatibilidade com padrão utilizado no Vivver.
+**Implementação:** ao iniciar, tenta carregar cookies do arquivo e valida com GET em `/desktop`. Se sessão inválida ou arquivo inexistente, refaz o login.
 
 ---
 
-## ADR-004 — Integração híbrida
+## 003 — Catálogo em memória
 
-Decisão:
+**Decisão:** manter catálogo completo em memória durante a execução.
 
-Utilizar dois mecanismos de integração:
+**Motivo:** evitar chamadas HTTP repetidas ao ERP durante matching e resolução de códigos. Busca em O(1) via dicionário.
 
-* HTTP API
-* UI automation
+**Trade-off:** sync completo a cada startup. Com 2.698 princípios e 13.671 produtos, o tempo é aceitável agora. Futuramente migrar para SQLite com sync incremental.
 
-Motivação:
+---
 
-Algumas operações não possuem endpoint disponível.
+## 004 — Revisão humana antes de executar no ERP
+
+**Decisão:** toda criação passa por fila de revisão antes de ser executada.
+
+**Motivo:** evitar duplicidade, erro farmacológico e inconsistência de dados no ERP de prefeituras.
+
+**Implementação:** `ReviewQueue` persiste em `data/review_queue.json`. API FastAPI expõe `/reviews` e `/approve/{id}`.
+
+---
+
+## 005 — Mesmo código para princípio e produto
+
+**Decisão:** princípio ativo e produto compartilham o mesmo código no Vivver.
+
+**Motivo:** regra de negócio do próprio ERP. O vínculo entre eles usa o código como referência.
+
+**Implementação:** `CodeGenerator` gera `max_codigo_existente + 1` considerando todos os produtos e princípios do catálogo.
+
+---
+
+## 006 — Extração de ID do HTML de resposta
+
+**Decisão:** extrair o ID do produto criado a partir do HTML retornado pelo POST.
+
+**Motivo:** o Vivver retorna status 200 com HTML (não JSON) após criação. O ID está em campo hidden `<input name="amx_produto[id]" value="...">`.
+
+**Fallback:** se não encontrado no HTML, captura o ID via sync do catálogo após criação.
+
+---
+
+## 007 — Chave do CODFORMA é campo "1", não "0"
+
+**Decisão:** usar campo `"1"` do dicionário de formas farmacêuticas como código.
+
+**Motivo:** campo `"0"` é o índice da linha (DT_RowId sequencial). Campo `"1"` é o código real que o Vivver usa no campo `CODFORMA`. Bug identificado e corrigido em `catalog_repository.py`.
+
+---
+
+## 008 — VIVVER_USERNAME no .env (não USERNAME)
+
+**Decisão:** usar `VIVVER_USERNAME` como nome da variável de ambiente.
+
+**Motivo:** `USERNAME` é variável reservada do sistema operacional Windows. `os.getenv("USERNAME")` retornava o usuário do Windows (`alenc`) em vez do valor do `.env`.
+
+---
+
+## 009 — Campo "dados" na resposta da API Vivver
+
+**Decisão:** tratar campo `"dados"` como lista de resultados (não `"data"` padrão DataTables).
+
+**Motivo:** o Vivver usa `"dados"` em português em vez do padrão `"data"`. Bug identificado que impedia paginação correta e fazia o sync retornar só os primeiros 100 registros.
+
+**Implementação:** `_get()` em `catalog.py` verifica `"dados"` primeiro, depois `"data"` como fallback.
